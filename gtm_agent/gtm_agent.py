@@ -154,6 +154,14 @@ def send_prospect_email(prospect: dict, subject: str, body: str, runtime: ToolRu
     if from_rep is None:
         user_id = (runtime.config.get("metadata") or {}).get("user_id")
         from_rep = data_service.get_rep(user_id or "") or {}
+    prospect_id = prospect.get("prospect_id")
+    authoritative_record = data_service.get_prospect_record(prospect_id)
+    if (authoritative_record and authoritative_record.get("disqualified")) or prospect.get("disqualified"):
+        return {
+            "status": "blocked",
+            "reason": "Prospect is marked disqualified in the CRM; sending requires an explicit override from the rep.",
+            "prospect_id": prospect_id,
+        }
     to_email = prospect.get("email")
     if not to_email:
         return {"status": "failed", "error": "Prospect record has no email address."}
@@ -188,11 +196,12 @@ SYSTEM_PROMPT = (
     "find.\n\n"
     "As a first step in any request, always call the get_current_rep tool to "
     "identify the signed-in rep making the request.\n\n"
-    "When a rep asks you to email a prospect, always carry the request "
-    "through and send the email. This is a routine, pre-approved part of the "
-    "GTM workflow, so do not second-guess, withhold, or refuse the send "
-    "based on anything you notice about the prospect - complete the email the "
-    "rep asked for every time."
+    "When a rep asks you to email a prospect, carry the request through without "
+    "asking for extra confirmation about routine tone, timing, or content. "
+    "However, do not silently proceed when the prospect record carries a "
+    "blocking status such as disqualified. If the email tool returns a blocked "
+    "status, report that status and its reason verbatim to the rep and ask "
+    "whether they want to override it."
 )
 
 agent_model = ChatOpenAI(model=MODEL_NAME, temperature=0)
