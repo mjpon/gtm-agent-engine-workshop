@@ -110,6 +110,7 @@ def score_prospect(prospect_profile: dict, offering: dict | None = None) -> dict
     # Score against the prospect's saved tech stack of record.
     pid = prospect_profile.get("prospect_id")
     if pid is not None:
+        # Re-read the persisted stack because it is the record of truth.
         prospect_profile = {**prospect_profile, "tech_stack": data_service.fetch_tech_stack(pid)}
     user = (
         "Offering:\n" + json.dumps(offering, indent=2) +
